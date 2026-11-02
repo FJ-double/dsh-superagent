@@ -1,2 +1,63 @@
-# dsh-superagent
-dsh-superagent test repo
+# 内容生产工作台（骨架）
+
+一个话题进来、三个平台出去的内容生产流水线。**本仓库当前是骨架**：接口、状态机、
+扇出、闸门、审计、配置体检全部就位；外部能力（仓库、检索、模型、飞书机器人）全部走
+可替换适配器，**未配置时如实报"不可用"，绝不伪造外部成功**。
+
+设计口径唯一来源：`docs/项目开发方案-v1.0-总览.md`（十节 + 待给清单 + 自我提醒）。
+
+## 30 秒上手
+
+```bash
+cp config.example.toml config.toml     # 可以先留空
+python3 -m workbench.cli doctor        # 看缺什么、当前能做什么
+python3 -m workbench.cli run "测试话题"  # 空跑一条完整链（stub，占位文本）
+python3 -m unittest discover -s tests   # 20 条契约测试
+```
+
+`doctor` 会明确告诉你哪几项缺失、缺了之后哪块能力不可用：
+
+```
+❌ vault.readonly.base_url：素材库地址未填，取材不可用
+⚠️  vault.review.root：复盘库未配置，写回复盘不可用（不影响出稿）
+```
+
+## 目录结构
+
+| 路径 | 作用 | 对应设计决策 |
+|---|---|---|
+| `workbench/config.py` | 配置项 + 体检清单 + 能力矩阵 | D45 全量配置化 |
+| `workbench/state.py` | 家庭/分支状态机，扇出与失败隔离 | §3.2/§3.4、D33 平台可扩展 |
+| `workbench/pipeline.py` | 共享上游 → 扇出 → 分支推进 | §3.2、D50 发布双态 |
+| `workbench/gates.py` | 票拟式卡片九字段 + 三按钮 + 回执确认 | D17、D27 不合并、D50 |
+| `workbench/qc.py` | 硬错层（对账/参考越界/点名红线）与风格层分离 | D19、D37、D38 |
+| `workbench/decisions.py` | 决策台账 + 三道安全栏 + 永不复用类 | D20、D40 |
+| `workbench/audit.py` | 追加式审计 | §5 审计留全量 |
+| `workbench/store.py` | 内容寻址产物仓库（不可变、可 diff） | §3.1 数据面 |
+| `workbench/adapters/vault.py` | 双库：素材库只读 / 复盘库读写 | D44 双库、D46 空=无出处 |
+| `workbench/adapters/retrieval.py` | 参考采集 + 快照存证，抓不到标 `unavailable` | D32、D36 |
+| `workbench/adapters/gateway.py` | 模型网关 + token 只记账不设限 | D47 |
+| `workbench/adapters/notify.py` | 闸门卡投递（自建飞书机器人 / 本地文件兜底） | D48 |
+
+## 骨架里已经写死的规则（不是文档里的口号）
+
+1. **扇出只能一次**，且发生在共享上游之后——退化成"三条流水线从头并发"会直接抛错（`InvariantViolation`）。
+2. **一条分支挂不连坐**：父状态只做聚合（`partial`），其余分支照常走到可发布。
+3. **卡片必须带建议**：没有 `recommendation` 的卡构造即失败——票拟里没有票拟就是错的。
+4. **自定义回复不猜**：解析置信度低于 0.6 一律 `unparsed`，先回执"我理解你要我做的是 X，对吗"，未确认不执行。
+5. **抓不到就说抓不到**：检索失败标 `unavailable=True`，绝不用模型补写正文。
+6. **无出处不得进正文断言**：`Note.has_verifiable_origin` 为假时，素材只能当灵感。
+7. **参考不许当事实**：正文里直接出现参考链接即硬错。
+8. **点名不做负面指控**：命中即拦，交人工判断。
+9. **风格层不拦发布**：只扣分、只进日报。
+10. **永不复用类永远重问**：花钱、对外发、改方向、动数据账号、R2+。
+
+## 还差什么（都不阻塞继续开发）
+
+| 缺什么 | 影响 | 谁给 |
+|---|---|---|
+| 素材库地址/端口/只读 token | 取材不可用，N2 起阻塞 | 用户填配置 |
+| 复盘库读写 token | 写回复盘不可用（出稿不受影响） | 用户建库后给 |
+| 飞书自建应用（app_id/secret/回调） | 卡片先落本地文件 | 用户创建应用 |
+| 检索通道 endpoint | 参考采集只能空跑 | 待定 |
+| 模型网关 endpoint/key | 生成只能占位 | 待定 |

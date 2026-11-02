@@ -1,0 +1,49 @@
+# 复制为 config.toml 后按需填写；空值不阻塞开发，doctor 会列出缺哪些。
+[app]
+name = "workbench"
+data_dir = "./.data"           # 产物仓库、审计、索引
+timezone = "Asia/Shanghai"
+
+# 素材库：只读（D44）。Obsidian Local REST API 插件
+[vault.readonly]
+driver = "http_rest"           # http_rest | fs
+base_url = ""                  # 例 http://192.168.1.10:27124
+token = ""                     # 只读凭据
+verify_tls = false
+
+# 复盘库：读写（D44）。系统唯一写入口
+[vault.review]
+driver = "fs"                  # fs | http_rest
+root = ""                      # 例 /mnt/workbench-notes  （Obsidian vault 目录）
+base_url = ""
+token = ""
+
+# 检索：由工作流自己执行（D36）。快照存证必做
+[retrieval]
+provider = "stub"              # stub | http
+endpoint = ""
+timeout_s = 20
+snapshot_dir = "./.data/snapshots"
+
+# 模型网关
+[gateway]
+provider = "stub"              # stub | http
+endpoint = ""
+api_key = ""
+# 不设额度上限（D47），只记账
+account_tokens = true
+anomaly_multiplier = 3.0       # 同类任务 3 倍以上只提示、不拦
+
+# 通知/闸门卡片（D48 自建飞书机器人）
+[notify]
+driver = "file"                # file | feishu_bot
+feishu_app_id = ""
+feishu_app_secret = ""
+card_callback_url = ""         # 内网回调地址
+out_dir = "./.data/cards"
+
+[publish]
+# auto: 弹发布确认卡 + 自动发 + 回读核实（D50）
+# manual: 不弹卡，直接给产物路径 + 一键发清单
+mode = "manual"
+platforms = ["wechat_mp", "xiaohongshu", "douyin"]
