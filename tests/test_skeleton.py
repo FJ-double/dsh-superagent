@@ -46,6 +46,61 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(cfg.vault_readonly.get("base_url"), "http://x")
 
 
+class EnvOverrideTest(unittest.TestCase):
+    """Docker 部署时仓库参数走环境变量（WB_VAULT_READONLY_*），不必写进 config.toml。"""
+
+    def test_env_injects_vault_settings(self):
+        import os
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.toml"
+            path.write_text('[app]\nname="wb"\ndata_dir="./.data"\n', encoding="utf-8")
+            os.environ["WB_VAULT_READONLY_BASE_URL"] = "https://host.docker.internal:27124"
+            os.environ["WB_VAULT_READONLY_TOKEN"] = "tok"
+            os.environ["WB_VAULT_REVIEW_ROOT"] = "/vault-review"
+            try:
+                cfg = config_mod.load(path)
+                self.assertEqual(cfg.vault_readonly.get("base_url"), "https://host.docker.internal:27124")
+                self.assertEqual(cfg.vault_review.get("root"), "/vault-review")
+                self.assertTrue(cfg.capabilities()["ingest_materials"])
+                self.assertTrue(cfg.capabilities()["writeback"])
+            finally:
+                for key in ("WB_VAULT_READONLY_BASE_URL", "WB_VAULT_READONLY_TOKEN", "WB_VAULT_REVIEW_ROOT"):
+                    os.environ.pop(key, None)
+
+    def test_obsidian_self_signed_cert_is_tolerated_when_verify_off(self):
+        """Local REST API 默认自签证书：verify_tls=false 必须真的放宽，否则请求全挂。"""
+        import urllib.request
+
+        from workbench.adapters.vault import HttpRestVaultRead
+
+        captured = {}
+
+        class FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b'{"ok": true}'
+
+        def fake_urlopen(req, timeout=None, context=None):
+            captured["context"] = context
+            return FakeResp()
+
+        original = urllib.request.urlopen
+        urllib.request.urlopen = fake_urlopen
+        try:
+            vault = HttpRestVaultRead("https://host.docker.internal:27124", "t", verify_tls=False)
+            vault._request("/")
+            self.assertIsNotNone(captured["context"])
+            self.assertFalse(captured["context"].verify_mode.name == "CERT_REQUIRED")
+        finally:
+            urllib.request.urlopen = original
+
+
 class StateTest(unittest.TestCase):
     def test_fanout_happens_once(self):
         fam = Family.open("f1", "t", [Channel.WECHAT, Channel.XHS], "article_first")

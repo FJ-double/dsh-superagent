@@ -18,9 +18,12 @@ class Section:
     required: tuple[str, ...] = ()
 
     def get(self, key: str, default: Any = None) -> Any:
-        env_key = f"WB_{self.name.upper()}_{key.upper()}"
-        if env_key in os.environ:
-            return os.environ[env_key]
+        # 环境变量优先：WB_VAULT_READONLY_BASE_URL 这种（点号换成下划线）
+        flat = f"WB_{self.name.upper().replace('.', '_')}_{key.upper()}"
+        legacy = f"WB_{self.name.upper()}_{key.upper()}"
+        for env_key in (flat, legacy):
+            if env_key in os.environ:
+                return os.environ[env_key]
         value = self.values.get(key, default)
         return default if value == "" else value
 

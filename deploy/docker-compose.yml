@@ -14,12 +14,22 @@ services:
       - "8787:8787"
     environment:
       WB_WEB_TOKEN: "${WB_WEB_TOKEN:?请在 .env 里设置 WB_WEB_TOKEN（页面口令）}"
+      # 仓库也可以不写进 config.toml，直接由环境变量注入（Windows 上更方便）
+      WB_VAULT_READONLY_DRIVER: "${WB_VAULT_READONLY_DRIVER:-http_rest}"
+      WB_VAULT_READONLY_BASE_URL: "${WB_VAULT_BASE_URL:-}"
+      WB_VAULT_READONLY_TOKEN: "${WB_VAULT_TOKEN:-}"
+      WB_VAULT_READONLY_VERIFY_TLS: "${WB_VAULT_VERIFY_TLS:-false}"
+      WB_VAULT_REVIEW_DRIVER: "${WB_VAULT_REVIEW_DRIVER:-fs}"
+      WB_VAULT_REVIEW_ROOT: "${WB_VAULT_REVIEW_ROOT:-}"
+    extra_hosts:
+      # 让容器内的 127.0.0.1 式访问能打到 Windows 主机上的 Obsidian（Local REST API）
+      - "host.docker.internal:host-gateway"
     volumes:
       # 配置与运行数据放卷里，重建容器不丢产物、台账与审计
       - ./config.toml:/app/config.toml:ro
       - workbench-data:/app/.data
-    # 若 Obsidian 就在同一台机器上，用 host 网络可直接访问 127.0.0.1:27124
-    # 需要时取消下面两行注释，并把上面的 ports 去掉
-    # network_mode: host
+      # 复盘库：把 Windows 上的 Obsidian 目录挂进来（路径换成你的）
+      # - "C:/Obsidian/复盘库:/vault-review"
+    # 容器内访问 Windows 上的 Obsidian Local REST API 用 host.docker.internal:27124
 volumes:
   workbench-data:

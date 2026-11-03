@@ -76,14 +76,19 @@ class HttpRestVaultRead:
         self.verify_tls = verify_tls
 
     def _request(self, path: str) -> Any:
+        import ssl
         import urllib.error
         import urllib.request
 
         req = urllib.request.Request(f"{self.base_url}{path}")
         if self.token:
             req.add_header("Authorization", f"Bearer {self.token}")
+        # Local REST API 默认用自签证书；verify_tls=false 时必须真的放宽，否则全部请求失败
+        context = None
+        if self.base_url.startswith("https") and not self.verify_tls:
+            context = ssl._create_unverified_context()  # noqa: S323
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=10, context=context) as resp:  # noqa: S310
                 return json.loads(resp.read().decode("utf-8"))
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
             raise AdapterUnavailable(f"素材库不可达：{self.base_url}（{exc}）") from exc
