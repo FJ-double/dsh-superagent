@@ -12,8 +12,25 @@
 cp config.example.toml config.toml     # 可以先留空
 python3 -m workbench.cli doctor        # 看缺什么、当前能做什么
 python3 -m workbench.cli run "测试话题"  # 空跑一条完整链（stub，占位文本）
-python3 -m unittest discover -s tests   # 20 条契约测试
+python3 -m unittest discover -s tests   # 30 条契约测试
 ```
+
+## 局域网 WebUI
+
+```bash
+python3 -m workbench.cli serve --host 0.0.0.0 --port 8787 --token 你自己定的口令
+# 手机/电脑浏览器打开 http://<这台机器的局域网IP>:8787
+```
+
+页面上能干四件事：**看缺什么**（必填/可选分色标注）、**填配置**（口令类字段只显示"已设置"，不回显）、
+**开跑一题**、**批闸门卡**（同意/拒绝/自定义回复；自定义回复会先回执"我理解你要 X，对吗"再执行）。
+台账与审计同页可见。
+
+安全默认（内网也一样）：
+- **绑非本机地址必须先设口令**，否则拒绝启动——闸门卡上有"同意发布"，内网裸奔等于谁都能替你拍板；
+- 页面本身不含数据，数据全走需要口令的 `/api/*`；
+- 配置只能改**白名单键**，`app.name` 这类不能从页面动；
+- 明文 HTTP，只建议在可信内网用；要出内网请套反向代理 + HTTPS。
 
 `doctor` 会明确告诉你哪几项缺失、缺了之后哪块能力不可用：
 
@@ -38,6 +55,9 @@ python3 -m unittest discover -s tests   # 20 条契约测试
 | `workbench/adapters/retrieval.py` | 参考采集 + 快照存证，抓不到标 `unavailable` | D32、D36 |
 | `workbench/adapters/gateway.py` | 模型网关 + token 只记账不设限 | D47 |
 | `workbench/adapters/notify.py` | 闸门卡投递（自建飞书机器人 / 本地文件兜底） | D48 |
+| `workbench/runtime.py` | CLI 与 WebUI 共用的装配，避免两处行为漂移 | — |
+| `workbench/webui/server.py` | 局域网 WebUI：口令、白名单配置改写、卡片确认回执 | D48 |
+| `workbench/webui/page.py` | 单页界面（原生 JS，无构建步骤，手机可用） | — |
 
 ## 骨架里已经写死的规则（不是文档里的口号）
 

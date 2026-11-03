@@ -15,51 +15,13 @@ import sys
 from pathlib import Path
 
 from . import config as config_mod
-from .adapters.gateway import StubGateway, UsageLedger
-from .adapters.notify import FeishuBotNotifier, FileNotifier
-from .adapters.retrieval import HttpRetrieval, StubRetrieval
-from .adapters.vault import FsVaultRead, FsVaultWrite, HttpRestVaultRead
 from .audit import Audit
 from .decisions import Ledger
 from .errors import WorkbenchError
-from .pipeline import Pipeline
-from .state import Channel
-from .store import ArtifactStore
+from .runtime import build_pipeline
+from .webui import serve
 
 OK, WARN, BAD = "✅", "⚠️ ", "❌"
-
-
-def _vault_read(cfg: config_mod.Config):
-    drv = cfg.vault_readonly.get("driver", "http_rest")
-    if drv == "fs":
-        root = cfg.vault_readonly.get("root") or cfg.vault_readonly.get("base_url")
-        return FsVaultRead(root) if root else None
-    url = cfg.vault_readonly.get("base_url")
-    return HttpRestVaultRead(url, cfg.vault_readonly.get("token", ""),
-                            cfg.vault_readonly.get("verify_tls", False)) if url else None
-
-
-def _vault_write(cfg: config_mod.Config):
-    drv = cfg.vault_review.get("driver", "fs")
-    if drv == "fs":
-        root = cfg.vault_review.get("root")
-        return FsVaultWrite(root) if root else None
-    return None
-
-
-def _retrieval(cfg: config_mod.Config):
-    if cfg.retrieval.get("provider") == "http" and cfg.retrieval.get("endpoint"):
-        return HttpRetrieval(cfg.retrieval.get("endpoint"), cfg.retrieval.get("snapshot_dir", "./.data/snapshots"))
-    return StubRetrieval()
-
-
-def _notifier(cfg: config_mod.Config, open_id: str):
-    if cfg.notify.get("driver") == "feishu_bot" and cfg.notify.get("feishu_app_id"):
-        return FeishuBotNotifier(
-            cfg.notify.get("feishu_app_id"), cfg.notify.get("feishu_app_secret"),
-            open_id, cfg.notify.get("card_callback_url", ""),
-        )
-    return FileNotifier(cfg.notify.get("out_dir", "./.data/cards"))
 
 
 def cmd_doctor(cfg: config_mod.Config) -> int:
@@ -78,20 +40,7 @@ def cmd_doctor(cfg: config_mod.Config) -> int:
 
 
 def cmd_run(cfg: config_mod.Config, args: argparse.Namespace) -> int:
-    data_dir = cfg.data_dir
-    store = ArtifactStore(data_dir)
-    audit = Audit(data_dir)
-    vr = _vault_read(cfg) if not args.no_vault else None
-    pipeline = Pipeline(
-        store=store, audit=audit,
-        vault_read=vr,
-        vault_write=_vault_write(cfg),
-        retrieval=_retrieval(cfg),
-        gateway=StubGateway(UsageLedger(float(cfg.gateway.get("anomaly_multiplier", 3.0)))),
-        notifier=_notifier(cfg, args.open_id),
-        publish_mode=cfg.publish.get("mode", "manual"),
-        platforms=tuple(Channel(p) for p in cfg.publish.get("platforms", ["wechat_mp", "xiaohongshu"])),
-    )
+    pipeline = build_pipeline(cfg, open_id=args.open_id, with_vault=not args.no_vault)
     result = pipeline.run(args.topic, master_form=args.master_form)
     print(f"家庭 {result.family.family_id}  聚合状态：{result.family.aggregate()}")
     for ch, br in result.family.branches.items():
@@ -162,6 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     p_led.add_argument("--quote", default="")
     p_led.add_argument("--conclusion", default="")
 
+    p_serve = sub.add_parser("serve", help="起局域网 WebUI")
+    p_serve.add_argument("--host", default=None, help="默认 127.0.0.1；局域网用 0.0.0.0（必须设口令）")
+    p_serve.add_argument("--port", type=int, default=None)
+    p_serve.add_argument("--token", default=None, help="访问口令；也可用 WB_WEB_TOKEN 环境变量")
+    p_serve.add_argument("--no-run", action="store_true", help="禁止从页面触发运行")
+
     p_audit = sub.add_parser("audit", help="审计尾巴")
     p_audit.add_argument("-n", type=int, default=20)
 
@@ -178,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
         "card": lambda: cmd_card(cfg, args),
         "ledger": lambda: cmd_ledger(cfg, args),
         "audit": lambda: cmd_audit(cfg, args),
+        "serve": lambda: serve(cfg.path, host=args.host, port=args.port,
+                               token=args.token, allow_run=not args.no_run),
     }
     try:
         return handlers[args.command]()

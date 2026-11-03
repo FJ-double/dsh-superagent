@@ -42,6 +42,12 @@ feishu_app_secret = ""
 card_callback_url = ""         # 内网回调地址
 out_dir = "./.data/cards"
 
+[webui]
+host = "127.0.0.1"             # 局域网用 0.0.0.0（此时必须设 token，否则拒绝启动）
+port = 8787
+token = ""                     # 访问口令；留空只允许本机访问
+allow_run = true               # 是否允许从页面触发运行
+
 [publish]
 # auto: 弹发布确认卡 + 自动发 + 回读核实（D50）
 # manual: 不弹卡，直接给产物路径 + 一键发清单
