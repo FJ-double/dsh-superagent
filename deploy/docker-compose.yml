@@ -1,0 +1,25 @@
+# 用法：
+#   1) cp ../config.example.toml ./config.toml   并填好 [vault.*]（放在 deploy/ 目录里）
+#   2) 在 .env 里写 WB_WEB_TOKEN=你的口令
+#   3) docker compose up -d
+services:
+  workbench:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: workbench:0.1
+    container_name: workbench
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      WB_WEB_TOKEN: "${WB_WEB_TOKEN:?请在 .env 里设置 WB_WEB_TOKEN（页面口令）}"
+    volumes:
+      # 配置与运行数据放卷里，重建容器不丢产物、台账与审计
+      - ./config.toml:/app/config.toml:ro
+      - workbench-data:/app/.data
+    # 若 Obsidian 就在同一台机器上，用 host 网络可直接访问 127.0.0.1:27124
+    # 需要时取消下面两行注释，并把上面的 ports 去掉
+    # network_mode: host
+volumes:
+  workbench-data:

@@ -411,8 +411,9 @@ def serve(config_path: str | Path | None = None, *, host: str | None = None,
         allow_run=bool(allow_run if allow_run is not None else _webui(cfg, "allow_run", True)),
     )
     httpd = ThreadingHTTPServer((bind_host, bind_port), Handler)
-    shown = bind_host if bind_host not in ("0.0.0.0", "") else "<本机 IP>"
-    print(f"工作台 WebUI 已启动：http://{shown}:{bind_port}/")
+    print(f"工作台 WebUI 已启动，监听 {bind_host}:{bind_port}")
+    for url in _access_urls(bind_host, bind_port):
+        print(f"  打开：{url}")
     if auth_token:
         print("需要口令：页面首次打开会问；也可以直接访问 http://<ip>:<port>/?token=<口令>")
     print("Ctrl-C 停止。")
@@ -422,6 +423,25 @@ def serve(config_path: str | Path | None = None, *, host: str | None = None,
         print("\n已停止。")
     finally:
         httpd.server_close()
+
+
+def _access_urls(host: str, port: int) -> list[str]:
+    """列出这台机器上可以打开页面的地址，省得用户去查 IP。"""
+    import socket
+
+    if host not in ("0.0.0.0", ""):
+        return [f"http://{host}:{port}/"]
+    urls = [f"http://127.0.0.1:{port}/"]
+    try:
+        shown = socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        shown = []
+    for ip in shown:
+        if not ip.startswith("127."):
+            urls.append(f"http://{ip}:{port}/")
+    if len(urls) == 1:                      # 容器里常见：拿不到局域网 IP
+        urls.append(f"http://<这台机器的局域网IP>:{port}/")
+    return urls
 
 
 def _webui(cfg: config_mod.Config, key: str, default: Any) -> Any:

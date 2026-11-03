@@ -39,6 +39,13 @@ python3 -m workbench.cli serve --host 0.0.0.0 --port 8787 --token 你自己定�
 ⚠️  vault.review.root：复盘库未配置，写回复盘不可用（不影响出稿）
 ```
 
+## 部署到一台常开的机器（HP）
+
+三条路（Docker / systemd / Windows）都在 `deploy/` 里，逐条照抄即可：
+- `deploy/Dockerfile` + `deploy/docker-compose.yml`
+- `deploy/workbench.service` + `deploy/install.sh`（裸机一键装成系统服务，自动生成口令）
+- `deploy/部署说明.md`：填配置的三个坑、防火墙、验证清单、出问题该发我什么
+
 ## 目录结构
 
 | 路径 | 作用 | 对应设计决策 |

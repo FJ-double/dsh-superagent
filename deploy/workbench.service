@@ -1,0 +1,26 @@
+# systemd 单元：直接跑在 HP 上的 Linux 里（无需 Docker）
+# 安装见 deploy/部署说明.md
+[Unit]
+Description=内容生产工作台 WebUI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=workbench
+Group=workbench
+WorkingDirectory=/opt/workbench
+Environment=WORKBENCH_CONFIG=/opt/workbench/config.toml
+EnvironmentFile=-/etc/workbench.env
+ExecStart=/usr/bin/python3 -m workbench.cli serve --host 0.0.0.0 --port 8787
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+# 复盘库如果要写到本机 Obsidian 目录，请改成可写：
+# ReadWritePaths=/srv/obsidian/复盘库
+
+[Install]
+WantedBy=multi-user.target
