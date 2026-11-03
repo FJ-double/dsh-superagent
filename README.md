@@ -46,6 +46,7 @@ python3 -m workbench.cli serve --host 0.0.0.0 --port 8787 --token 你自己定�
 - `deploy/workbench.service` + `deploy/install.sh`（裸机一键装成系统服务，自动生成口令）
 - `deploy/deploy-windows.ps1`：Windows + Docker Desktop 一条命令搞定（自动生成口令、等健康检查、打印局域网地址）
 - `deploy/部署说明.md`：Windows 一键部署、Obsidian 同机时用 `host.docker.internal:27124`、防火墙、验证清单
+- `deploy/给部署代理的说明.md`：**交给别的代理执行部署用的说明书**（前置检查、一条命令、五项验收、回传材料、故障表、边界）
 
 ## 目录结构
 
