@@ -1,0 +1,8 @@
+[project]
+name = "workbench"
+version = "0.1.0"
+description = "内容生产工作台 —— 骨架实现（可空跑，配置后置填充）"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["workbench", "workbench.adapters"]
